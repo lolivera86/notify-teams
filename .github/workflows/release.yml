@@ -1,0 +1,40 @@
+name: Release-Action
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Ref'
+        required: true
+        default: 'main'
+      version:
+        description: 'Version'
+        required: true
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - env:
+          RELEASE_VERSION:
+            ${{ inputs.version }}
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if [ -z "$RELEASE_VERSION" ]
+          then
+            exit 1
+          fi
+
+          RELEASE_VERSION_TAG="v$RELEASE_VERSION"
+          git tag -a -m "${RELEASE_VERSION}" "${RELEASE_VERSION_TAG}"
+          git push origin "${RELEASE_VERSION_TAG}"
+
+          # move the major version tag e.g. v1
+          git tag --force "${RELEASE_VERSION_TAG%%.*}"
+          git push --force origin "${RELEASE_VERSION_TAG%%.*}"
