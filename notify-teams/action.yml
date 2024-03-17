@@ -1,0 +1,53 @@
+name: "Notify teams"
+
+description: "Notify team about GitHub-action workflow outcomes"
+
+inputs:
+  title:
+    description: "Message title"
+    required: true
+  summary:
+    description: "Message summary (will be shown in Teams notification)"
+    required: true
+  text:
+    description: "Message text"
+    required: false
+  teams-webhook-url:
+    description: "Teams webhook URL"
+    required: false
+
+runs:
+  using: "composite"
+
+  steps:
+    - name: Build MS Teams webhook payload
+      uses: actions/github-script@v7
+      id: teams-webhook-payload
+      with:
+        script: |
+          const inputs = ${{ toJSON(inputs) }}
+          return {
+            "@type": "MessageCard",
+            "@context": "https://schema.org/extensions",
+            "title": inputs.title,
+            "summary": inputs.summary !== '' ? inputs.summary : null,
+            "text": inputs.text,
+            "potentialAction": [
+              {
+                "@type": "OpenUri",
+                "name": "Show workflow run",
+                "targets": [{
+                  "os": "default",
+                  "uri": `https://github.com/${{github.repository}}/actions/runs/${context.runId}`
+                }]
+              }
+            ]
+          }
+
+    - name: Notify via MS Teams on failure
+      shell: bash
+      run: |
+        curl --fail-with-body -X POST \
+        ${{ inputs.teams-webhook-url }} \
+        -H 'Content-Type: application/json' \
+        -d '${{ steps.teams-webhook-payload.outputs.result }}'
